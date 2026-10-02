@@ -12,7 +12,7 @@
 
 ## 🌟 Live Demo
 
-🔗 **Demo URL:** [Deploy on Streamlit Community Cloud](https://share.streamlit.io/) *(Replace with your live Streamlit Cloud link after deploying)*
+🔗 **Demo URL:** [Deploy on Streamlit Community Cloud](https://resume-analyzer-fsd29avrcqphtfspcrkgq7.streamlit.app/) *(Replace with your live Streamlit Cloud link after deploying)*
 
 ---
 
@@ -44,7 +44,7 @@
 
 ## 📸 Screenshots
 
-*(Add screenshots of your deployed app here)*
+*()*
 
 | Candidate Mode | Recruiter Leaderboard |
 | :---: | :---: |
