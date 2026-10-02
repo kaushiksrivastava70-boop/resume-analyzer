@@ -1,0 +1,47 @@
+ALEX MORGAN
+alex.morgan@email.com | +1 (555) 382-9104 | San Francisco, CA
+linkedin.com/in/alexmorgan-dev | github.com/alexmorgan-tech
+
+PROFESSIONAL SUMMARY
+Results-driven Senior Full-Stack Software Engineer with 5+ years of experience designing and scaling distributed web applications and cloud architectures. Proven track record of improving system latency by 42% and driving 99.99% service uptime across microservices handling 10M+ daily active requests. Skilled in Python, TypeScript, React, Docker, and AWS.
+
+TECHNICAL SKILLS
+- Programming Languages: Python, TypeScript, JavaScript, Go, SQL, HTML5, CSS3
+- Web & Frameworks: React, Next.js, FastAPI, Node.js, Express, Tailwind CSS, GraphQL, REST API
+- Databases & Storage: PostgreSQL, Redis, MongoDB, Elasticsearch
+- Cloud & DevOps: AWS (Lambda, ECS, S3, RDS), Docker, Kubernetes, CI/CD, Terraform, GitHub Actions, Linux
+- Methodologies: Agile, Scrum, System Design, Microservices, Code Review, Mentorship
+
+PROFESSIONAL EXPERIENCE
+Senior Software Engineer | CloudScale Systems | San Francisco, CA
+June 2021 - Present
+- Architected and deployed microservices backend using Python, FastAPI, and PostgreSQL, increasing throughput by 65% for 12M+ monthly users.
+- Spearheaded migration from monolithic architecture to containerized services on AWS ECS and Docker, reducing monthly cloud infrastructure costs by 28% ($45,000/yr).
+- Engineered distributed caching layer with Redis that reduced database query latency from 240ms to 18ms.
+- Built reusable React and TypeScript component library used by 14 front-end engineers, accelerating feature delivery cycles by 35%.
+- Mentored 6 junior and mid-level software engineers through structured pair programming and comprehensive code reviews.
+
+Software Engineer | NextGen Digital | Austin, TX
+July 2019 - May 2021
+- Developed responsive customer dashboard using React, Redux, and Node.js, boosting user engagement metrics by 22%.
+- Automated end-to-end CI/CD release pipelines with GitHub Actions, decreasing production release failure rate from 14% to under 2%.
+- Integrated Stripe payment gateway and Elasticsearch transaction search, successfully processing $8.5M in transactions with zero downtime.
+- Optimized slow SQL queries and PostgreSQL database indexing, cutting p95 response time by 40%.
+
+NOTABLE PROJECTS
+DevPulse - Developer Productivity & Analytics Platform
+- Built full-stack monitoring dashboard with Next.js, Python FastAPI, and PostgreSQL tracking GitHub metrics for 500+ repositories.
+- Integrated WebSocket streaming for real-time build alerting and deployed services using Docker on AWS.
+
+SmartRoute - Cloud Logistics Dispatcher
+- Designed route optimization engine using Python and NumPy, reducing driver transit times by 19% across 2,000 daily deliveries.
+- Open-sourced tool on GitHub, garnering 450+ stars and 80 forks from the developer community.
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of California, Berkeley | 2015 - 2019
+Dean's Honor List, GPA: 3.82 / 4.0
+
+CERTIFICATIONS
+- AWS Certified Solutions Architect - Associate (2023)
+- HashiCorp Certified: Terraform Associate (2022)
