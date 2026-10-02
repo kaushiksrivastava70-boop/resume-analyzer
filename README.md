@@ -28,6 +28,14 @@
 - **🎯 Job Description Matcher:** Paste any job posting to calculate match percentage, view side-by-side matched vs. missing skills, and discover keyword gaps.
 - **💡 Actionable Improvement Tips:** Prioritized recommendations (**High**, **Medium**, **Low**) ordered by hiring impact.
 - **📊 Modern Interactive Visualizations:** Circular gauge chart and 5-axis radar chart built with Plotly.
+- **🏢 Recruiter Mode (Batch Screening & Ranking):**
+  - **In-Memory ZIP Processing:** Unpack and parse batches of PDF/DOCX resumes directly in memory.
+  - **Deterministic TF-IDF & Cosine Similarity:** Semantic keyword and context alignment scored against the target Job Description.
+  - **Dynamic Candidate Leaderboard:** Sortable, interactive candidate rankings with pass/fail threshold filtering.
+  - **Batch Talent Analytics:** Top 5 missing skills across the applicant pool, score distribution histograms, and shortlisting metrics.
+  - **Candidate Dossier Drilldown:** Instant candidate contact card, years of experience, matched skills, and extracted bullet points.
+  - **Excel & CSV Export:** Download comprehensive candidate ranking reports as `.csv` or formatted `.xlsx`.
+  - **1-Click Demo Batch:** Instant access to 5 realistic engineering candidate resumes for immediate demonstration.
 - **📥 Downloadable Audit Reports:** Export your complete ATS evaluation as a **PDF** or structured **Text** file with one click.
 - **🛡️ 100% Privacy-Preserving:** Resumes are processed completely in-memory. No databases, no tracking, and no external paid APIs required.
 - **✨ One-Click Sample Resume:** Test all capabilities immediately without uploading your own document.
@@ -38,9 +46,9 @@
 
 *(Add screenshots of your deployed app here)*
 
-| Overview Dashboard | Job Description Match |
+| Candidate Mode | Recruiter Leaderboard |
 | :---: | :---: |
-| ![Dashboard Overview](https://raw.githubusercontent.com/placeholder/resume-analyzer-overview.png) | ![JD Match Analysis](https://raw.githubusercontent.com/placeholder/resume-analyzer-jd.png) |
+| ![Dashboard Overview](https://raw.githubusercontent.com/placeholder/resume-analyzer-overview.png) | ![Recruiter Leaderboard](https://raw.githubusercontent.com/placeholder/recruiter-mode-leaderboard.png) |
 
 ---
 
@@ -48,6 +56,7 @@
 
 - **Framework:** [Streamlit](https://streamlit.io/) (v1.32+)
 - **Language:** Python 3.10+
+- **Data & Tables:** [pandas](https://pandas.pydata.org/), [openpyxl](https://openpyxl.readthedocs.io/)
 - **PDF Extraction:** [pypdf](https://pypdf.readthedocs.io/)
 - **DOCX Extraction:** [python-docx](https://python-docx.readthedocs.io/)
 - **Visualizations:** [Plotly](https://plotly.com/python/)
@@ -60,8 +69,9 @@
 
 ```text
 resume-analyzer/
-├── app.py                  # Main Streamlit web application & UI
-├── analyzer.py             # Core analysis engine & report generators
+├── app.py                  # Main Streamlit web application & UI (Candidate + Recruiter Modes)
+├── analyzer.py             # Core candidate analysis engine & report generators
+├── recruiter_mode.py       # Batch ZIP screening, TF-IDF cosine similarity & analytics
 ├── skills_db.py            # Categorized skills taxonomy & action verbs dictionary
 ├── sample_resume.txt       # Preloaded sample resume for 1-click testing
 ├── requirements.txt        # Production Python dependencies
@@ -70,7 +80,8 @@ resume-analyzer/
 ├── .gitignore              # Git ignore rules for Python & Streamlit
 ├── README.md               # Project documentation
 └── tests/
-    └── test_analyzer.py    # Automated unit tests with Pytest
+    ├── test_analyzer.py    # Automated unit tests for candidate analyzer
+    └── test_recruiter_mode.py # Unit & integration tests for recruiter batch mode
 ```
 
 ---

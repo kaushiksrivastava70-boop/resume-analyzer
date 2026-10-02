@@ -21,6 +21,7 @@ from analyzer import (
     generate_pdf_report,
     generate_text_report,
 )
+from recruiter_mode import render_recruiter_mode
 
 
 # --- PAGE CONFIGURATION ---
@@ -345,7 +346,51 @@ Requirements & Qualifications:
 def main():
     inject_custom_css()
 
-    # --- SIDEBAR ---
+    # --- SIDEBAR MODE SWITCHER ---
+    with st.sidebar:
+        st.markdown("### 🎛️ Select App Mode")
+        app_mode = st.radio(
+            "Select Interface:",
+            ["👤 Candidate Mode (Single Resume)", "🏢 Recruiter Mode (Batch Screening)"],
+            index=0,
+            key="app_mode_selection",
+            label_visibility="collapsed",
+        )
+        st.markdown("---")
+
+    if app_mode.startswith("🏢"):
+        with st.sidebar:
+            st.markdown("### 📋 Recruiter Instructions")
+            st.markdown(
+                """
+                <div class="sidebar-section">
+                    <strong>Batch Screening Steps:</strong>
+                    <ol style="margin-top: 6px; padding-left: 18px; margin-bottom: 0;">
+                        <li>Review or customize target Job Description.</li>
+                        <li>Upload a <code>.zip</code> file of resumes or click <b>Load Demo Batch</b>.</li>
+                        <li>Adjust the minimum passing score slider.</li>
+                        <li>Explore rankings, analytics, and candidate dossiers.</li>
+                        <li>Export leaderboard as CSV or Excel.</li>
+                    </ol>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                """
+                <div class="privacy-box">
+                    🛡️ <div><strong>100% In-Memory Processing</strong><br/>Resumes are unzipped and evaluated directly in memory without persisting to server storage.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown("---")
+            st.caption("Recruiter Screening Engine • Built with Streamlit & Plotly")
+
+        render_recruiter_mode()
+        return
+
+    # --- CANDIDATE MODE SIDEBAR ---
     with st.sidebar:
         st.markdown("### 📋 Navigation & About")
 
