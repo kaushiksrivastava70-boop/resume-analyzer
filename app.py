@@ -22,6 +22,7 @@ from analyzer import (
     generate_text_report,
 )
 from recruiter_mode import render_recruiter_mode
+from chatgpt_evaluator import evaluate_resume_chatgpt, generate_chatgpt_prompt
 
 
 # --- PAGE CONFIGURATION ---
@@ -587,11 +588,12 @@ def main():
         )
 
     # --- TABS LAYOUT ---
-    tab_overview, tab_skills, tab_jd, tab_suggestions = st.tabs([
+    tab_overview, tab_skills, tab_jd, tab_suggestions, tab_chatgpt = st.tabs([
         "📊 Overview",
         f"🛠️ Skills ({len(analysis.all_skills)})",
         "🎯 Job Description Match",
         f"💡 Improvement Suggestions ({len(analysis.suggestions)})",
+        "🤖 ChatGPT Evaluation & Critique",
     ])
 
     # =========================================================================
@@ -752,6 +754,100 @@ def main():
                 with st.expander(f"{s.icon} {s.title} ({s.priority} Priority)", expanded=(s.priority == "High")):
                     st.markdown(f'<span class="{badge_class}">{s.priority.upper()} PRIORITY</span> &nbsp; <b>Category:</b> {s.category}', unsafe_allow_html=True)
                     st.markdown(f"<p style='margin-top:8px; font-size:0.95rem; color:#334155;'>{s.description}</p>", unsafe_allow_html=True)
+
+    # =========================================================================
+    # TAB 5: CHATGPT EVALUATION & CRITIQUE
+    # =========================================================================
+    with tab_chatgpt:
+        st.markdown("### 🤖 ChatGPT Semantic Evaluation & Bar Raiser Critique")
+        st.caption(
+            "Compares your resume against the target role using deep semantic reasoning, concept matching, "
+            "and hiring bar raiser standards."
+        )
+
+        with st.spinner("Generating ChatGPT semantic evaluation..."):
+            chatgpt_res = evaluate_resume_chatgpt(
+                resume_text=resume_text,
+                jd_text=jd_input or "Software Engineer",
+                candidate_name="Applicant",
+                api_key=st.session_state.get("openai_api_key"),
+            )
+
+        # Comparison Scoreboard
+        col_c_ats, col_c_gpt, col_c_verdict = st.columns([1, 1, 1.5], gap="medium")
+        with col_c_ats:
+            st.metric("Traditional ATS Score", f"{analysis.total_score}/100")
+        with col_c_gpt:
+            st.metric("ChatGPT Semantic Fit Score", f"{chatgpt_res.chatgpt_score:.1f}/100")
+        with col_c_verdict:
+            st.markdown(
+                f"""
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 14px; text-align:center;">
+                    <div style="font-size:1.15rem; font-weight:700; color:#1E293B;">{chatgpt_res.verdict}</div>
+                    <div style="font-size:0.75rem; color:#64748B;">{chatgpt_res.source}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        # Executive Summary
+        st.markdown("<br/>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style="background:#EEF2FF; border-left: 4px solid #4F46E5; padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <strong style="color:#3730A3;">Executive Critique Summary:</strong>
+                <p style="margin: 6px 0 0 0; color:#1E293B; font-size:0.95rem; line-height:1.5;">{chatgpt_res.executive_summary}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Strengths vs Gaps
+        col_gpt_str, col_gpt_gaps = st.columns(2, gap="medium")
+        with col_gpt_str:
+            st.markdown("#### 🌟 Key Competitive Strengths")
+            for s in chatgpt_res.key_strengths:
+                st.markdown(f"- ✅ {s}")
+
+        with col_gpt_gaps:
+            st.markdown("#### ⚠️ Critical Skill Gaps & Red Flags")
+            for g in chatgpt_res.critical_gaps:
+                st.markdown(f"- ⚠️ {g}")
+
+        # Google X-Y-Z Bullet Point Rewrites
+        if chatgpt_res.bullet_rewrites:
+            st.markdown("<br/>", unsafe_allow_html=True)
+            st.markdown("#### ✍️ High-Impact Bullet Rewriter (Google X-Y-Z Formula)")
+            st.caption("ChatGPT recommends converting passive duty statements into quantified business impact: *'Accomplished [X] as measured by [Y], by doing [Z]'*.")
+
+            for rw in chatgpt_res.bullet_rewrites:
+                with st.container():
+                    st.markdown(
+                        f"""
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:1rem; margin-bottom:0.75rem;">
+                            <div style="font-size:0.8rem; font-weight:600; color:#DC2626; margin-bottom:4px;">❌ Original Resume Bullet:</div>
+                            <div style="font-size:0.9rem; color:#64748B; margin-bottom:10px;">"{rw['original']}"</div>
+                            <div style="font-size:0.8rem; font-weight:600; color:#16A34A; margin-bottom:4px;">✅ ChatGPT High-Impact Rewrite:</div>
+                            <div style="font-size:0.92rem; color:#1E293B; font-weight:500;">"{rw['rewrite']}"</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+        # Technical Screening Questions
+        if chatgpt_res.interview_questions:
+            st.markdown("<br/>", unsafe_allow_html=True)
+            st.markdown("#### 🎯 Technical Questions You May Be Asked")
+            st.caption("Based on your resume gaps, technical interviewers and hiring managers are likely to ask:")
+            for q_idx, q in enumerate(chatgpt_res.interview_questions, 1):
+                st.markdown(f"**{q_idx}.** *\"{q}\"*")
+
+        # Copy Prompt for ChatGPT Web
+        st.markdown("<br/>", unsafe_allow_html=True)
+        with st.expander("📋 Copy Prompt for ChatGPT Web (chatgpt.com)", expanded=False):
+            prompt_content = generate_chatgpt_prompt(resume_text, jd_input or "Software Engineer")
+            st.caption("Paste this ready-to-use prompt directly into ChatGPT web to compare live results:")
+            st.text_area("Prompt Text:", value=prompt_content, height=220, disabled=False, key="cand_prompt_copy")
 
 
 if __name__ == "__main__":

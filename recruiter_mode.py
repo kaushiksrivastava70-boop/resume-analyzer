@@ -27,6 +27,13 @@ from analyzer import (
     extract_skills,
     extract_text,
 )
+from chatgpt_evaluator import (
+    ChatGptEvaluationResult,
+    classify_jd_requirements,
+    evaluate_resume_chatgpt,
+    generate_chatgpt_prompt,
+    match_skills_semantically,
+)
 
 
 @dataclass
@@ -49,6 +56,7 @@ class CandidateResult:
     raw_text: str
     status: str = "Success"
     error_message: Optional[str] = None
+    chatgpt_evaluation: Optional[ChatGptEvaluationResult] = None
 
 
 @dataclass
@@ -350,6 +358,8 @@ def process_resume_zip(
     jd_text: str,
     threshold: float = 60.0,
     progress_callback: Optional[Callable[[float, str], None]] = None,
+    openai_api_key: Optional[str] = None,
+    openai_model: str = "gpt-4o-mini",
 ) -> BatchAnalysisResult:
     """Unpack in-memory ZIP and run deterministic scoring & parsing pipeline."""
     if not zip_bytes:
@@ -451,7 +461,7 @@ def process_resume_zip(
     else:
         tfidf_scores = [0.0] * len(extracted_texts)
 
-    # 3. Candidate Metadata & Scoring Phase
+    # 3. Candidate Metadata & ChatGPT-Grade Semantic Scoring Phase
     for local_idx, global_idx in enumerate(valid_entry_indices):
         entry = valid_entries[global_idx]
         clean_name = entry.filename.split("/")[-1]
@@ -461,7 +471,7 @@ def process_resume_zip(
         if progress_callback:
             progress_callback(
                 0.5 + (local_idx / (len(valid_entry_indices) * 2)),
-                f"Analyzing qualifications for {clean_name}...",
+                f"Running semantic analysis for {clean_name}...",
             )
 
         name = extract_candidate_name(text, clean_name)
@@ -470,18 +480,25 @@ def process_resume_zip(
         _, candidate_skills = extract_skills(text)
         bullets = extract_bullet_points(text, max_bullets=4)
 
-        candidate_skills_set = {s.lower() for s in candidate_skills}
+        # ChatGPT-aligned semantic evaluation
+        chatgpt_eval = evaluate_resume_chatgpt(
+            resume_text=text,
+            jd_text=jd_text,
+            candidate_name=name,
+            api_key=openai_api_key,
+            model=openai_model,
+        )
 
-        matched_skills = [s for s in jd_skills if s.lower() in candidate_skills_set]
-        missing_skills = [s for s in jd_skills if s.lower() not in candidate_skills_set]
+        matched_skills = chatgpt_eval.mandatory_matched + chatgpt_eval.preferred_matched
+        missing_skills = chatgpt_eval.mandatory_missing + chatgpt_eval.preferred_missing
 
         if jd_skills:
             skill_match_pct = round((len(matched_skills) / len(jd_skills)) * 100.0, 1)
-            # Composite score: 60% hard skill keyword match + 40% TF-IDF semantic alignment
-            composite = round((0.60 * skill_match_pct) + (0.40 * tfidf_sim), 1)
         else:
             skill_match_pct = 0.0
-            composite = tfidf_sim
+
+        # Composite score: incorporates ChatGPT semantic score + TF-IDF semantic alignment
+        composite = round((0.75 * chatgpt_eval.chatgpt_score) + (0.25 * tfidf_sim), 1)
 
         candidates.append(
             CandidateResult(
@@ -501,6 +518,7 @@ def process_resume_zip(
                 key_bullet_points=bullets,
                 raw_text=text,
                 status="Success",
+                chatgpt_evaluation=chatgpt_eval,
             )
         )
 
@@ -551,11 +569,13 @@ def candidates_to_dataframe(candidates: List[CandidateResult], threshold: float 
         else:
             status_label = "Parse Error ❌"
 
+        ai_verdict = c.chatgpt_evaluation.verdict if c.chatgpt_evaluation else "N/A"
         rows.append({
             "Rank": idx,
             "Status": status_label,
             "Candidate Name": c.name,
             "Match Score (%)": c.composite_score,
+            "AI Verdict": ai_verdict,
             "Skill Match (%)": c.skill_match_percentage,
             "TF-IDF Sim (%)": c.tfidf_similarity,
             "Years Exp": f"{c.years_of_experience:.1f} yrs" if c.years_of_experience is not None else "N/A",
@@ -812,10 +832,10 @@ Requirements & Qualifications:
                     st.session_state.pop("recruiter_results", None)
                     st.rerun()
 
-    # --- THRESHOLD SLIDER ---
+    # --- THRESHOLD & AI SETTINGS ---
     st.markdown("<br/>", unsafe_allow_html=True)
-    st.markdown("### ⚙️ 2. Screening Parameters")
-    col_thresh, col_notes = st.columns([1, 2], gap="large")
+    st.markdown("### ⚙️ 2. Screening Parameters & AI Evaluator")
+    col_thresh, col_ai_opts = st.columns([1, 2], gap="large")
     with col_thresh:
         pass_threshold = st.slider(
             "Minimum Shortlist Passing Score (%)",
@@ -825,11 +845,33 @@ Requirements & Qualifications:
             step=5.0,
             help="Candidates scoring at or above this threshold will be flagged as 'Shortlisted ✅'.",
         )
-    with col_notes:
-        st.caption(
-            "💡 **Scoring Composition**: Composite Match Score evaluates 60% hard skill keyword overlap "
-            "(from our engineering taxonomy) and 40% TF-IDF Cosine Similarity semantic context alignment."
-        )
+    with col_ai_opts:
+        with st.expander("🤖 ChatGPT / OpenAI Integration Settings (Optional)", expanded=False):
+            st.caption("By default, the built-in **ChatGPT Semantic Emulator** runs 100% offline at zero cost. You can also provide an OpenAI API key for live GPT-4o evaluations.")
+            col_k1, col_k2 = st.columns([2, 1])
+            with col_k1:
+                openai_api_key_input = st.text_input(
+                    "OpenAI API Key (Optional):",
+                    value=st.session_state.get("openai_api_key", ""),
+                    type="password",
+                    placeholder="sk-...",
+                    key="recruiter_api_key_input",
+                )
+                if openai_api_key_input.strip():
+                    st.session_state["openai_api_key"] = openai_api_key_input.strip()
+                elif "openai_api_key" in st.session_state and not openai_api_key_input:
+                    st.session_state.pop("openai_api_key", None)
+            with col_k2:
+                openai_model_choice = st.selectbox(
+                    "Model:",
+                    options=["gpt-4o-mini", "gpt-4o"],
+                    index=0,
+                    key="recruiter_model_choice",
+                )
+            if st.session_state.get("openai_api_key"):
+                st.success(f"🟢 Live OpenAI API Connected ({openai_model_choice})")
+            else:
+                st.info("⚡ Built-in ChatGPT Semantic Emulator Active (100% Offline & Free)")
 
     # Determine data source: uploaded zip or demo zip
     zip_bytes_to_process = None
@@ -849,8 +891,8 @@ Requirements & Qualifications:
 
     # --- PROCESS BATCH ---
     run_batch = False
-    # Cache key based on content length/hash
-    current_key = f"{len(zip_bytes_to_process)}_{len(jd_input)}"
+    effective_api_key = st.session_state.get("openai_api_key", "")
+    current_key = f"{len(zip_bytes_to_process)}_{len(jd_input)}_{effective_api_key}_{openai_model_choice}"
     if st.session_state.get("last_processed_key") != current_key:
         run_batch = True
 
@@ -863,12 +905,14 @@ Requirements & Qualifications:
             status_text.text(msg)
 
         try:
-            with st.spinner("Processing batch resumes in memory..."):
+            with st.spinner("Processing batch resumes with ChatGPT semantic analysis..."):
                 results = process_resume_zip(
                     zip_bytes=zip_bytes_to_process,
                     jd_text=jd_input,
                     threshold=pass_threshold,
                     progress_callback=update_progress,
+                    openai_api_key=effective_api_key if effective_api_key else None,
+                    openai_model=openai_model_choice,
                 )
                 st.session_state["recruiter_results"] = results
                 st.session_state["last_processed_key"] = current_key
@@ -1179,17 +1223,72 @@ Requirements & Qualifications:
             else:
                 st.success("Candidate matches 100% of required skills!")
 
+        # --- CHATGPT EVALUATION DOSSIER ---
+        if selected_candidate.chatgpt_evaluation:
+            cg = selected_candidate.chatgpt_evaluation
+            st.markdown("<br/>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div style="background: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%); border-radius: 12px; padding: 1.25rem 1.5rem; color: white; margin-bottom: 1.25rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <span style="background:rgba(255,255,255,0.2); padding:3px 10px; border-radius:9999px; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.5px;">🤖 ChatGPT Recruiter Assessment</span>
+                            <h4 style="margin:6px 0 2px 0; color:white;">{cg.verdict} &nbsp;•&nbsp; {cg.fit_level}</h4>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:1.8rem; font-weight:800; color:#38BDF8;">{cg.chatgpt_score:.1f}%</span>
+                            <div style="font-size:0.75rem; color:#CBD5E1;">AI Fit Score • {cg.source}</div>
+                        </div>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size:0.92rem; line-height:1.5; color:#E0E7FF;">
+                        {cg.executive_summary}
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            col_ai_strengths, col_ai_gaps = st.columns(2, gap="medium")
+            with col_ai_strengths:
+                st.markdown("##### 🌟 Candidate Strengths (ChatGPT)")
+                for s in cg.key_strengths:
+                    st.markdown(f"- ✅ {s}")
+
+            with col_ai_gaps:
+                st.markdown("##### ⚠️ Skill Gaps & Potential Risks (ChatGPT)")
+                for g in cg.critical_gaps:
+                    st.markdown(f"- ⚠️ {g}")
+
+            st.markdown("<br/>", unsafe_allow_html=True)
+            st.markdown("##### 📞 Tailored Technical Phone Screen Questions")
+            st.caption("Custom technical screening questions formulated to test this candidate's specific qualification gaps:")
+            for q_idx, q in enumerate(cg.interview_questions, 1):
+                st.markdown(f"**Q{q_idx}:** *\"{q}\"*")
+
         if selected_candidate.key_bullet_points:
             st.markdown("<br/>", unsafe_allow_html=True)
             st.markdown("##### 📌 Extracted Key Achievements & Highlights")
             for b in selected_candidate.key_bullet_points:
                 st.markdown(f"- {b}")
 
-        with st.expander("📄 View Full Parsed Resume Text", expanded=False):
-            st.text_area(
-                "Raw Text:",
-                value=selected_candidate.raw_text,
-                height=300,
-                disabled=True,
-                key=f"raw_text_{selected_candidate.filename}",
-            )
+        col_full_text, col_prompt = st.columns(2, gap="medium")
+        with col_full_text:
+            with st.expander("📄 View Full Parsed Resume Text", expanded=False):
+                st.text_area(
+                    "Raw Text:",
+                    value=selected_candidate.raw_text,
+                    height=260,
+                    disabled=True,
+                    key=f"raw_text_{selected_candidate.filename}",
+                )
+
+        with col_prompt:
+            with st.expander("📋 Copy Prompt for ChatGPT Web", expanded=False):
+                cand_prompt = generate_chatgpt_prompt(selected_candidate.raw_text, jd_input)
+                st.text_area(
+                    "Paste into chatgpt.com:",
+                    value=cand_prompt,
+                    height=260,
+                    disabled=False,
+                    key=f"prompt_{selected_candidate.filename}",
+                )
